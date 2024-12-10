@@ -1,57 +1,38 @@
-# Project Name
+# Video Analysis with GPT-4o
 
-(short, 1-3 sentenced, description of the project)
+The aim of this respo is to demonstrate the capabilities of GPT-4o to analyze and extract insights from a video file or a video url (e.g. youtube)
 
-## Features
+The steps to process a video are the following:
+1. Split the video in segments of N seconds (or not, if 0 seconds is specified)
+2. Extract the frames of the video, 1 frame per second
+3. Transcribe the audio with Whisper, if so selected
+4. Analyze the frames and the audio (optional) to extract the description, the summarization, or any other insights depending of the prompt
 
-This project framework provides the following features:
+## Prerequisites
++ An Azure subscription, with [access to Azure OpenAI](https://aka.ms/oai/access).
++ An Azure OpenAI service with the service name and an API key.
++ A deployment of GPT-4o model on the Azure OpenAI Service.
++ A deployment of whisper model on the Azure OpenAI Service.
 
-* Feature 1
-* Feature 2
-* ...
+I used Python 3.12.5, [Visual Studio Code with the Python extension](https://code.visualstudio.com/docs/python/python-tutorial), and the [Jupyter extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) to test this example.
 
-## Getting Started
+### Set up a Python virtual environment in Visual Studio Code
 
-### Prerequisites
+1. Open the Command Palette (Ctrl+Shift+P).
+1. Search for **Python: Create Environment**.
+1. Select **Venv**.
+1. Select a Python interpreter. Choose 3.10 or later.
 
-(ideally very short, if any)
-
-- OS
-- Library version
-- ...
-
-### Installation
-
-(ideally very short)
-
-- npm install [package name]
-- mvn install
-- ...
-
-### Quickstart
-(Add steps to get up and running quickly)
-
-1. git clone [repository clone url]
-2. cd [repository name]
-3. ...
+It can take a minute to set up. If you run into problems, see [Python environments in VS Code](https://code.visualstudio.com/docs/python/environments).
 
 
-## Demo
+The needed libraries are specified in [requirement.txt](requirements.txt).
 
-A demo app is included to show how to use the project.
+Here is the code of this demo: [video-analysis-with-gpt-4o.py](video-analysis-with-gpt-4o.py)
 
-To run the demo, follow these steps:
+A screenshot:
+<img src="./Screenshot.png" alt="Sample Screenshot"/>
 
-(Add steps to start up the demo)
+To run the application execute this command: streamlit run video-analysis-with-gpt-4o.py
 
-1.
-2.
-3.
-
-## Resources
-
-(Any additional resources or related projects)
-
-- Link to supporting information
-- Link to similar sample
-- ...
+To deploy the application on your Azure tenant in an Azure Container Registry (Docker), follow this [guide: Build and store an image by using Azure Container Registry](https://learn.microsoft.com/en-us/training/modules/deploy-run-container-app-service/3-exercise-build-images) and then create and deploy the web app following this [guide: Create and deploy a web app from a Docker image](https://learn.microsoft.com/en-us/training/modules/deploy-run-container-app-service/5-exercise-deploy-web-app).
