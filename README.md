@@ -1,6 +1,6 @@
 # Video Analysis with GPT-4o
 
-The aim of this respo is to demonstrate the capabilities of GPT-4o to analyze and extract insights from a video file or a video url (e.g. youtube)
+The aim of this respo is to demonstrate the capabilities of GPT-4o to analyze and extract insights from a video file or a video url (e.g. Youtube)
 
 The steps to process a video are the following:
 1. Split the video in segments of N seconds (or not, if 0 seconds is specified)
