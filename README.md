@@ -28,6 +28,14 @@ It can take a minute to set up. If you run into problems, see [Python environmen
 
 The needed libraries are specified in [requirement.txt](requirements.txt).
 
+Make sure to also configure a .env file with the following resources:
+1. AZURE_OPENAI_ENDPOINT =
+2. AZURE_OPENAI_API_KEY = 
+3. AZURE_OPENAI_DEPLOYMENT_NAME = 
+4. WHISPER_ENDPOINT =
+5. WHISPER_API_KEY = 
+6. WHISPER_DEPLOYMENT_NAME = 
+
 Here is the code of this demo: [video-analysis-with-gpt-4o.py](video-analysis-with-gpt-4o.py)
 
 A screenshot:
