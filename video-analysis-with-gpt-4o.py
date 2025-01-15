@@ -8,17 +8,18 @@ from dotenv import load_dotenv
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy.editor import VideoFileClip
 from openai import AzureOpenAI
+# from openai import OpenAIClient
 import base64
 import yt_dlp
 from yt_dlp.utils import download_range_func
 
 # Default configuration
 SEGMENT_DURATION = 20 # In seconds, Set to 0 to not split the video
-SYSTEM_PROMPT = "You are a helpful assistant that describes in detail a video. Response in the same language than the transcription."
+SYSTEM_PROMPT = "You are a helpful assistant that describes in detail a video. Respond in english." # the same language than the transcription."
 USER_PROMPT = "These are the frames from the video."
 DEFAULT_TEMPERATURE = 0.5
 RESIZE_OF_FRAMES = 2
-SECONDS_PER_FRAME = 1
+SECONDS_PER_FRAME = 2
 
 # Load configuration
 load_dotenv(override=True)
@@ -31,10 +32,16 @@ print(f'aoai_endpoint: {aoai_endpoint}, aoai_model_name: {aoai_model_name}')
 # Create AOAI client for answer generation
 aoai_client = AzureOpenAI(
     azure_deployment=aoai_model_name,
-    api_version='2024-10-01-preview', #'2024-02-15-preview',
+    api_version='2024-08-01-preview', #'2024-02-15-preview',
     azure_endpoint=aoai_endpoint,
     api_key=aoai_apikey
 )
+# aoai_client = OpenAIClient(
+#     api_type="azure",
+#     api_key=aoai_apikey,
+#     api_base=aoai_endpoint,
+#     api_version='2024-10-01-preview'
+# )
 
 # Configuration of Whisper
 whisper_endpoint = os.environ["WHISPER_ENDPOINT"]
@@ -42,56 +49,114 @@ whisper_apikey = os.environ["WHISPER_API_KEY"]
 whisper_model_name = os.environ["WHISPER_DEPLOYMENT_NAME"]
 # Create AOAI client for whisper
 whisper_client = AzureOpenAI(
-    api_version='2024-02-01',
+    api_version='2024-06-01',
     azure_endpoint=whisper_endpoint,
     api_key=whisper_apikey
 )
+# whisper_client = OpenAIClient(
+#     api_type="azure",
+#     api_key=whisper_apikey,
+#     api_base=whisper_endpoint,
+#     api_version='2024-02-01'
+# )
+
+
+print(f"Endpoint: {aoai_endpoint}, Model Name: {aoai_model_name}, Whisper Endpoint: {whisper_endpoint}, Whisper Model Name: {whisper_model_name}")
 
 # Function to encode a local video into frames
-def process_video(video_path, seconds_per_frame=SECONDS_PER_FRAME, resize=RESIZE_OF_FRAMES, output_dir='', temperature = DEFAULT_TEMPERATURE):
+# def process_video(video_path, seconds_per_frame=SECONDS_PER_FRAME, resize=RESIZE_OF_FRAMES, output_dir='', temperature = DEFAULT_TEMPERATURE):
+#     base64Frames = []
+
+#     # Prepare the video analysis
+#     video = cv2.VideoCapture(video_path)
+#     total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+#     fps = video.get(cv2.CAP_PROP_FPS)
+#     frames_to_skip = int(fps * seconds_per_frame)
+#     curr_frame=0
+
+#     # Prepare to write the frames to disk
+#     if output_dir != '': # if we want to write the frame to disk
+#         output_dir = 'frames'
+#         os.makedirs(output_dir, exist_ok=True)
+#         frame_count = 1
+
+#     # Loop through the video and extract frames at specified sampling rate
+#     while curr_frame < total_frames - 1:
+#         video.set(cv2.CAP_PROP_POS_FRAMES, curr_frame)
+#         success, frame = video.read()
+#         if not success:
+#             break
+
+#         # Resize the frame to save tokens and get faster answer from the model. If resize==0 don't resize
+#         if resize != 0:
+#             height, width, _ = frame.shape
+#             frame = cv2.resize(frame, (width // resize, height // resize))
+
+#         _, buffer = cv2.imencode(".jpg", frame)
+
+#         # Save frame as JPG file
+#         if output_dir != '': # if we want to write the frame to disk
+#             frame_filename = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(video_path))[0]}_frame_{frame_count}.jpg")
+#             print(f'Saving frame {frame_filename}')
+#             with open(frame_filename, "wb") as f:
+#                 f.write(buffer)            
+#             frame_count += 1
+
+#         base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+#         curr_frame += frames_to_skip
+#     video.release()
+#     print(f"Extracted {len(base64Frames)} frames")
+    
+#     return base64Frames
+
+#UPDATED Function to encode a local video into frames while dynamically accounting for 50 image limitation
+def process_video(video_path, max_frames=50, resize=RESIZE_OF_FRAMES, output_dir='', temperature=DEFAULT_TEMPERATURE):
     base64Frames = []
 
     # Prepare the video analysis
     video = cv2.VideoCapture(video_path)
     total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = video.get(cv2.CAP_PROP_FPS)
+    video_duration = total_frames / fps
+
+    # Calculate SECONDS_PER_FRAME dynamically to limit frames to `max_frames`
+    seconds_per_frame = max(video_duration / max_frames, 1 / fps)
     frames_to_skip = int(fps * seconds_per_frame)
-    curr_frame=0
+    curr_frame = 0
 
     # Prepare to write the frames to disk
-    if output_dir != '': # if we want to write the frame to disk
-        output_dir = 'frames'
+    if output_dir != '':
         os.makedirs(output_dir, exist_ok=True)
         frame_count = 1
 
-    # Loop through the video and extract frames at specified sampling rate
+    # Loop through the video and extract frames at the specified sampling rate
     while curr_frame < total_frames - 1:
         video.set(cv2.CAP_PROP_POS_FRAMES, curr_frame)
         success, frame = video.read()
         if not success:
             break
 
-        # Resize the frame to save tokens and get faster answer from the model. If resize==0 don't resize
+        # Resize the frame if required
         if resize != 0:
             height, width, _ = frame.shape
             frame = cv2.resize(frame, (width // resize, height // resize))
 
         _, buffer = cv2.imencode(".jpg", frame)
 
-        # Save frame as JPG file
-        if output_dir != '': # if we want to write the frame to disk
+        # Save frame as JPG file if output_dir is specified
+        if output_dir != '':
             frame_filename = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(video_path))[0]}_frame_{frame_count}.jpg")
-            print(f'Saving frame {frame_filename}')
             with open(frame_filename, "wb") as f:
-                f.write(buffer)            
+                f.write(buffer)
             frame_count += 1
 
         base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
         curr_frame += frames_to_skip
     video.release()
-    print(f"Extracted {len(base64Frames)} frames")
-    
+    print(f"Extracted {len(base64Frames)} frames with seconds_per_frame={seconds_per_frame:.2f}")
+
     return base64Frames
+
 
 # Function to transcript the audio from the local video with Whisper
 def process_audio(video_path):
@@ -194,7 +259,7 @@ def execute_video_processing(st, segment_path, system_prompt, user_prompt, tempe
                 output_dir = 'frames'
             else:
                 output_dir = ''
-            base64frames = process_video(segment_path, seconds_per_frame=seconds_per_frame, resize=resize, output_dir=output_dir, temperature=temperature)
+            base64frames = process_video(segment_path, max_frames=50, resize=resize, output_dir=output_dir, temperature=temperature)
             fin = time.time()
             print(f'\t>>>> Frames extraction took {(fin - inicio):.3f} seconds <<<<')
             ### st.write(f'Extracted {len(base64frames)} frames in {(fin - inicio):.3f} seconds')
@@ -256,6 +321,8 @@ with st.sidebar:
     temperature = float(st.number_input('Temperature for the model', DEFAULT_TEMPERATURE))
     system_prompt = st.text_area('System Prompt', SYSTEM_PROMPT)
     user_prompt = st.text_area('User Prompt', USER_PROMPT)
+    max_frames = st.number_input("Maximum Frames for Analysis", min_value=1, max_value=100, value=50, step=1, help="Maximum number of frames to analyze.")
+
 
 # Prepare the segment directory
 output_dir = "segments"
@@ -329,7 +396,7 @@ if st.button("Analyze video", use_container_width=True, type='primary'):
             #st.write(f"{analysis}")
 
             # Example detecting an event
-            event="guitarra eléctrica"
+            event="electric guitar"
             if event in analysis:
                 st.write(f'**Detected event "{event}" in segment {segment_path}**')
             
@@ -338,6 +405,7 @@ if st.button("Analyze video", use_container_width=True, type='primary'):
 
     else: # Process the fideo file
         if video_file is not None:
+            os.makedirs("temp", exist_ok=True)
             video_path = os.path.join("temp", video_file.name)
         try:
             with open(video_path, "wb") as f:
